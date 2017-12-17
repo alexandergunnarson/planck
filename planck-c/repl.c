@@ -5,6 +5,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
 
 #include "linenoise.h"
 
@@ -416,6 +417,18 @@ void highlight(const char *buf, int pos) {
 
         if (num_lines_up != -1) {
             int relative_horiz = highlight_pos - current_pos;
+
+            int prompt_length = (int) strlen(s_repl->current_prompt);
+
+            struct winsize w;
+            int rv = ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+            int terminal_width = rv == -1 ? 80 : w.ws_col;
+
+            if (current_pos + prompt_length + 1 > terminal_width) {
+                int extra_lines = (current_pos + prompt_length) / terminal_width;
+                relative_horiz = (relative_horiz + extra_lines * terminal_width) % terminal_width;
+                num_lines_up += extra_lines;
+            }
 
             if (num_lines_up != 0) {
                 fprintf(stdout, "\x1b[%dA", num_lines_up);
